@@ -26,8 +26,19 @@ WORKDIR /app
 RUN echo "host all  all    0.0.0.0/0  trust" >> /etc/postgresql/9.5/main/pg_hba.conf && \
     echo "listen_addresses='*'" >> /etc/postgresql/9.5/main/postgresql.conf
 
+RUN cp /etc/postgresql/9.5/main/postgresql.conf /etc/postgresql/9.5/main/postgresql.conf.work && \
+    echo "shared_buffers = 2GB" >> /etc/postgresql/9.5/main/postgresql.conf && \
+    echo "maintenance_work_mem  = 10GB" >> /etc/postgresql/9.5/main/postgresql.conf && \
+    echo "work_mem  = 50MB" >> /etc/postgresql/9.5/main/postgresql.conf && \
+    echo "effective_cache_size   = 24GB" >> /etc/postgresql/9.5/main/postgresql.conf && \
+    echo "synchronous_commit = off" >> /etc/postgresql/9.5/main/postgresql.conf && \
+    echo "checkpoint_timeout = 10min" >> /etc/postgresql/9.5/main/postgresql.conf && \
+    echo "checkpoint_completion_target = 0.9" >> /etc/postgresql/9.5/main/postgresql.conf && \
+    echo "fsync = off" >> /etc/postgresql/9.5/main/postgresql.conf && \
+    echo "full_page_writes = off" >> /etc/postgresql/9.5/main/postgresql.conf
+
 # Nominatim install
-ENV NOMINATIM_VERSION v3.0.1
+ENV NOMINATIM_VERSION v3.1.0
 RUN git clone --recursive https://github.com/openstreetmap/Nominatim ./src
 RUN cd ./src && git checkout tags/$NOMINATIM_VERSION && git submodule update --recursive --init && \
     mkdir build && cd build && cmake .. && make
@@ -40,7 +51,8 @@ COPY local.php /app/src/build/settings/local.php
 COPY nominatim.conf /etc/apache2/sites-enabled/000-default.conf
 
 # Load initial data
-ARG PBF_DATA=http://download.geofabrik.de/europe/monaco-latest.osm.pbf
+ARG PBF_DATA=http://download.geofabrik.de/russia-latest.osm.pbf
+ARG THREADS=8
 RUN curl -L -f $PBF_DATA --create-dirs -o /app/src/data.osm.pbf
 RUN curl http://www.nominatim.org/data/country_grid.sql.gz > /app/src/data/country_osm_grid.sql.gz
 RUN service postgresql start && \
@@ -49,8 +61,11 @@ RUN service postgresql start && \
     sudo -u postgres psql postgres -c "DROP DATABASE IF EXISTS nominatim" && \
     useradd -m -p password1234 nominatim && \
     chown -R nominatim:nominatim ./src && \
-    sudo -u nominatim ./src/build/utils/setup.php --osm-file /app/src/data.osm.pbf --all --threads 2 && \
+    sudo -u nominatim ./src/build/utils/setup.php --osm-file /app/src/data.osm.pbf --all --threads $THREADS && \
+    sudo -u postgres psql -d nominatim -c "VACUUM FULL ANALYZE;" && \
     service postgresql stop
+
+RUN mv -f /etc/postgresql/9.5/main/postgresql.conf.work /etc/postgresql/9.5/main/postgresql.conf
 
 EXPOSE 5432
 EXPOSE 8080
