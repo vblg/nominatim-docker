@@ -53,16 +53,17 @@ COPY nominatim.conf /etc/apache2/sites-enabled/000-default.conf
 # Load initial data
 ARG PBF_DATA=http://download.geofabrik.de/russia-latest.osm.pbf
 ARG THREADS=8
-RUN curl -L -f $PBF_DATA --create-dirs -o /app/src/data.osm.pbf
-RUN curl http://www.nominatim.org/data/country_grid.sql.gz > /app/src/data/country_osm_grid.sql.gz
-RUN service postgresql start && \
+RUN curl -L -f $PBF_DATA --create-dirs -o /app/src/data.osm.pbf && \
+    curl http://www.nominatim.org/data/country_grid.sql.gz > /app/src/data/country_osm_grid.sql.gz && \
+    service postgresql start && \
     sudo -u postgres psql postgres -tAc "SELECT 1 FROM pg_roles WHERE rolname='nominatim'" | grep -q 1 || sudo -u postgres createuser -s nominatim && \
     sudo -u postgres psql postgres -tAc "SELECT 1 FROM pg_roles WHERE rolname='www-data'" | grep -q 1 || sudo -u postgres createuser -SDR www-data && \
     sudo -u postgres psql postgres -c "DROP DATABASE IF EXISTS nominatim" && \
     useradd -m -p password1234 nominatim && \
     chown -R nominatim:nominatim ./src && \
     sudo -u nominatim ./src/build/utils/setup.php --osm-file /app/src/data.osm.pbf --all --threads $THREADS && \
-    sudo -u postgres psql -d nominatim -c "VACUUM FULL ANALYZE;" && \
+    rm -f /app/src/data.osm.pbf && \
+    sudo -u postgres psql -d nominatim -c "ANALYZE;" && \
     service postgresql stop
 
 RUN mv -f /etc/postgresql/9.5/main/postgresql.conf.work /etc/postgresql/9.5/main/postgresql.conf
