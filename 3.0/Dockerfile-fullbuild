@@ -24,17 +24,17 @@ WORKDIR /app
 
 # Configure postgres
 RUN echo "host all  all    0.0.0.0/0  trust" >> /etc/postgresql/9.5/main/pg_hba.conf && \
+    echo "shared_buffers = 2GB" >> /etc/postgresql/9.5/main/postgresql.conf && \
+    echo "work_mem  = 50MB" >> /etc/postgresql/9.5/main/postgresql.conf && \
+    echo "fsync = off" >> /etc/postgresql/9.5/main/postgresql.conf && \
     echo "listen_addresses='*'" >> /etc/postgresql/9.5/main/postgresql.conf
 
 RUN cp /etc/postgresql/9.5/main/postgresql.conf /etc/postgresql/9.5/main/postgresql.conf.work && \
-    echo "shared_buffers = 2GB" >> /etc/postgresql/9.5/main/postgresql.conf && \
     echo "maintenance_work_mem  = 10GB" >> /etc/postgresql/9.5/main/postgresql.conf && \
-    echo "work_mem  = 50MB" >> /etc/postgresql/9.5/main/postgresql.conf && \
     echo "effective_cache_size   = 24GB" >> /etc/postgresql/9.5/main/postgresql.conf && \
     echo "synchronous_commit = off" >> /etc/postgresql/9.5/main/postgresql.conf && \
     echo "checkpoint_timeout = 10min" >> /etc/postgresql/9.5/main/postgresql.conf && \
     echo "checkpoint_completion_target = 0.9" >> /etc/postgresql/9.5/main/postgresql.conf && \
-    echo "fsync = off" >> /etc/postgresql/9.5/main/postgresql.conf && \
     echo "full_page_writes = off" >> /etc/postgresql/9.5/main/postgresql.conf
 
 # Nominatim install
@@ -63,7 +63,7 @@ RUN curl -L -f $PBF_DATA --create-dirs -o /app/src/data.osm.pbf && \
     chown -R nominatim:nominatim ./src && \
     sudo -u nominatim ./src/build/utils/setup.php --osm-file /app/src/data.osm.pbf --all --threads $THREADS && \
     rm -f /app/src/data.osm.pbf && \
-    sudo -u postgres psql -d nominatim -c "ANALYZE;" && \
+    sudo -u postgres psql -d nominatim -c "ANALYZE" && \
     service postgresql stop
 
 RUN mv -f /etc/postgresql/9.5/main/postgresql.conf.work /etc/postgresql/9.5/main/postgresql.conf

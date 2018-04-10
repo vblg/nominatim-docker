@@ -23,6 +23,11 @@ spec:
         - name: {{ .Chart.Name }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+{{- if .Values.ingress.enabled -}}
+          env:
+            - name: NOMINATIM_BASE_URL
+              value: {{ .Values.ingress.path }}
+{{- end }}              
           ports:
             - name: http
               containerPort: {{ .Values.container.port }}

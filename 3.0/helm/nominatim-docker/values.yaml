@@ -5,7 +5,7 @@
 replicaCount: 1
 
 image:
-  repository: balagurov/nominatim
+  repository: eu.gcr.io/indigo-terra-120510/nominatim-docker
   tag: stable
   pullPolicy: IfNotPresent
 
@@ -18,10 +18,12 @@ container:
 
 ingress:
   enabled: false
-  annotations: {}
+  annotations:
     kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/rewrite-target: "/"
+    nginx.ingress.kubernetes.io/whitelist-source-range: "91.237.83.3,91.121.55.203,46.105.63.135,31.173.215.18,95.80.65.242"
     # kubernetes.io/tls-acme: "true"
-  path: /
+  path: /nominatim
   hosts:
     - maps.etecar.ru
   tls: []
@@ -29,17 +31,17 @@ ingress:
   #    hosts:
   #      - chart-example.local
 
-resources: {}
+resources:
   # We usually recommend not to specify default resources and to leave this as a conscious
   # choice for the user. This also increases chances charts run on environments with little
   # resources, such as Minikube. If you do want to specify resources, uncomment the following
   # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
-  # limits:
-  #  cpu: 100m
-  #  memory: 128Mi
-  # requests:
-  #  cpu: 100m
-  #  memory: 128Mi
+   limits:
+    cpu: 1500m
+    memory: 3Gi
+   requests:
+    cpu: 1000m
+    memory: 2Gi
 
 nodeSelector: {}
 

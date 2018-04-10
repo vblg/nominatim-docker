@@ -1,0 +1,25 @@
+ARG BUILD_IMAGE
+FROM ${BUILD_IMAGE}
+MAINTAINER dorukozturk <dorukozturk@kitware.com>
+
+ENV DEBIAN_FRONTEND noninteractive
+ENV LANG C.UTF-8
+
+WORKDIR /app
+
+# Configure postgres
+RUN echo "host all  all    0.0.0.0/0  trust" >> /etc/postgresql/9.5/main/pg_hba.conf && \
+    echo "shared_buffers = 2GB" >> /etc/postgresql/9.5/main/postgresql.conf && \
+    echo "work_mem  = 50MB" >> /etc/postgresql/9.5/main/postgresql.conf && \
+    echo "fsync = off" >> /etc/postgresql/9.5/main/postgresql.conf && \
+    echo "listen_addresses='*'" >> /etc/postgresql/9.5/main/postgresql.conf
+
+# Apache configure
+COPY local.php /app/src/build/settings/local.php
+COPY nominatim.conf /etc/apache2/sites-enabled/000-default.conf
+
+EXPOSE 5432
+EXPOSE 8080
+
+COPY start.sh /app/start.sh
+CMD /app/start.sh
