@@ -4,6 +4,20 @@ import ru.etecar.HelmClient
 import ru.etecar.HelmRelease
 import ru.etecar.HelmRepository
 
+node ('gce-standard-4-ssd') {
+    cleanWs()
+    checkout scm
+    stage ('Build image'){
+        def dataVersion = "20180405"
+        def buildFromImageTag = "3.1.0-russia-20180405-3"
+        def imageRepo = 'eu.gcr.io/indigo-terra-120510'
+        def appName = 'nominatim-docker'
+        def imageTag = "3.1.0-russia-${dataVersion}-${env.BUILD_NUMBER}"
+        docker.withRegistry(imageRepo, 'google-docker-repo') {
+            sh "cd 3.0 && docker build --build-arg BUILD_IMAGE=${imageRepo}/${appName}:${buildFromImageTag} -t ${imageRepo}:${imageTag} --file Dockerfile-updatebuild . && docker push ${imageRepo}/${appName}:${buildFromImageTag}"
+         }    
+    }
+}
 node ('docker-server'){
     Libs utils = new Libs(steps)
     HelmClient helm = new HelmClient(steps)
@@ -19,7 +33,7 @@ node ('docker-server'){
         helm.init('helm')
         helm.repoAdd(repo)
 
-        stage('Build'){
+        stage('Build helm'){
             withCredentials([usernameColonPassword(credentialsId: "nexus", variable: 'CREDENTIALS')]) {
                 repo.push(helm.buildPacket("${nominatimVer}/helm/${appName}/Chart.yaml"), CREDENTIALS, "helm-repo")
             }
