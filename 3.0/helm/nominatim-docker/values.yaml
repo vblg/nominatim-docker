@@ -21,7 +21,7 @@ ingress:
   annotations:
     kubernetes.io/ingress.class: nginx
     nginx.ingress.kubernetes.io/rewrite-target: "/"
-    nginx.ingress.kubernetes.io/whitelist-source-range: "91.237.83.3,91.121.55.203,46.105.63.135,31.173.215.18,95.80.65.242"
+    nginx.ingress.kubernetes.io/whitelist-source-range: "91.237.83.3,91.121.55.203,46.105.63.135,31.173.215.18,95.80.65.242,145.239.195.62,145.239.195.206"
     # kubernetes.io/tls-acme: "true"
   path: /nominatim
   hosts:
@@ -37,11 +37,11 @@ resources:
   # resources, such as Minikube. If you do want to specify resources, uncomment the following
   # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
    limits:
-    cpu: 1500m
-    memory: 3Gi
-   requests:
     cpu: 1000m
-    memory: 2Gi
+    memory: 7Gi
+   requests:
+    cpu: 500m
+    memory: 6Gi
 
 nodeSelector: {}
 

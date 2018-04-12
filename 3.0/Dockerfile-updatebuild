@@ -9,7 +9,7 @@ WORKDIR /app
 
 # Configure postgres
 RUN echo "host all  all    0.0.0.0/0  trust" >> /etc/postgresql/9.5/main/pg_hba.conf && \
-    echo "shared_buffers = 2GB" >> /etc/postgresql/9.5/main/postgresql.conf && \
+    echo "shared_buffers = 5GB" >> /etc/postgresql/9.5/main/postgresql.conf && \
     echo "work_mem  = 50MB" >> /etc/postgresql/9.5/main/postgresql.conf && \
     echo "fsync = off" >> /etc/postgresql/9.5/main/postgresql.conf && \
     echo "listen_addresses='*'" >> /etc/postgresql/9.5/main/postgresql.conf
@@ -17,6 +17,7 @@ RUN echo "host all  all    0.0.0.0/0  trust" >> /etc/postgresql/9.5/main/pg_hba.
 # Apache configure
 COPY local.php /app/src/build/settings/local.php
 COPY nominatim.conf /etc/apache2/sites-enabled/000-default.conf
+COPY warmup.sql /app/warmup.sql
 
 EXPOSE 5432
 EXPOSE 8080
