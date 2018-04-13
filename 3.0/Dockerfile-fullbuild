@@ -24,6 +24,7 @@ WORKDIR /app
 
 # Configure postgres
 RUN echo "host all  all    0.0.0.0/0  trust" >> /etc/postgresql/9.5/main/pg_hba.conf && \
+    echo "host all  all    127.0.0.1/32  trust" >> /etc/postgresql/9.5/main/pg_hba.conf && \
     echo "shared_buffers = 2GB" >> /etc/postgresql/9.5/main/postgresql.conf && \
     echo "work_mem  = 50MB" >> /etc/postgresql/9.5/main/postgresql.conf && \
     echo "fsync = off" >> /etc/postgresql/9.5/main/postgresql.conf && \
@@ -49,6 +50,7 @@ RUN pip install osmium
 # Apache configure
 COPY local.php /app/src/build/settings/local.php
 COPY nominatim.conf /etc/apache2/sites-enabled/000-default.conf
+COPY warmup.sql /app/warmup.sql
 
 # Load initial data
 ARG PBF_DATA=http://download.geofabrik.de/russia-latest.osm.pbf
