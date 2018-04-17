@@ -3,19 +3,59 @@ import ru.etecar.Libs
 import ru.etecar.HelmClient
 import ru.etecar.HelmRelease
 import ru.etecar.HelmRepository
+import java.time.ZonedDateTime
+import static java.time.format.DateTimeFormatter.RFC_1123_DATE_TIME
+import static java.time.format.DateTimeFormatter.BASIC_ISO_DATE
+
+def imageTag = ""
+def pbfRepository = "http://download.geofabrik.de/russia-latest.osm.pbf"
+def imageRepo = 'eu.gcr.io/indigo-terra-120510'
+def appName = 'nominatim-docker'
+def lastImageTime
+
+@NonCPS
+String getLastPbfTimestamp(String url) {
+    def baseUrl = new URL(url);
+    HttpURLConnection connection = (HttpURLConnection) baseUrl.openConnection();
+    connection.addRequestProperty("Accept", "application/json");
+    connection.with {
+        doOutput = false
+        requestMethod = 'GET'
+    }
+    return connection.getHeaderField("Last-Modified");
+}
+
 
 node ('gce-standard-4-ssd') {
     cleanWs()
     checkout scm
     stage ('Build image'){
-        def dataVersion = "20180405"
-        def buildFromImageTag = "3.1.0-russia-20180405-3"
-        def imageRepo = 'eu.gcr.io/indigo-terra-120510'
-        def appName = 'nominatim-docker'
-        def imageTag = "3.1.0-russia-${dataVersion}-${env.BUILD_NUMBER}"
-        docker.withRegistry(imageRepo, 'google-docker-repo') {
-            sh "cd 3.0 && docker build --build-arg BUILD_IMAGE=${imageRepo}/${appName}:${buildFromImageTag} -t ${imageRepo}:${imageTag} --file Dockerfile-updatebuild . && docker push ${imageRepo}/${appName}:${buildFromImageTag}"
-         }    
+        try {
+            copyArtifacts filter: 'pbf-timestamp', fingerprintArtifacts: true, projectName: "${env.JOB_NAME}", selector: lastSuccessful()
+            lastImageTime = sh returnStdout: true, script: 'cat pbf-timestamp'
+        }
+        catch (e){
+            echo "Assuming that it's first time build"
+            lastImageTime = "Mon, 5 Jan 1970 00:00:00 GMT"
+        }
+        
+        def lastModefied = getLastPbfTimestamp(pbfRepository);
+        echo "lastModefied: ${lastModefied}"
+        previousPbfDate = ZonedDateTime.parse(lastImageTime, RFC_1123_DATE_TIME);
+        echo "previousPbfDate: ${previousPbfDate.format(RFC_1123_DATE_TIME)}"
+        ZonedDateTime pbfDate = ZonedDateTime.parse(lastModefied, RFC_1123_DATE_TIME);
+        
+        if (!pbfDate.isAfter(previousPbfDate)) {
+            throw new Exception("no changes in geofabric repo. No build needed");
+        }
+        
+        imageTag = "3.1.0-russia-${pbfDate.format(BASIC_ISO_DATE)}";
+        sh "echo -n \"${pbfDate.format(RFC_1123_DATE_TIME)}\"> pbf-timestamp"
+        archiveArtifacts 'pbf-timestamp'
+        withCredentials([file(credentialsId: 'google-docker-repo', variable: 'CREDENTIALS')]) {
+            sh "mkdir -p ~/.docker && cat \"${CREDENTIALS}\" > ~/.docker/config.json"
+        }           
+        sh "cd 3.0 && docker build -t ${imageRepo}/${appName}:${imageTag} --file Dockerfile-fullbuild . && docker push ${imageRepo}/${appName}:${imageTag}"
     }
 }
 node ('docker-server'){
@@ -26,7 +66,6 @@ node ('docker-server'){
         cleanWs()
         appName = 'nominatim-docker'
         nominatimVer = '3.0'
-        imageTag = "3.1.0-russia-20180405"
         kubeProdContext = "google-system"
 
         checkout scm
