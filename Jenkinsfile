@@ -41,7 +41,7 @@ node ('gce-standard-8-ssd') {
             catch (e){
                 throw new Exception("This is first time build, select fullbuild parameter.");
             }
-            ZonedDateTime pbfDate = ZonedDateTime.parse(lastImageTime, RFC_1123_DATE_TIME);
+            pbfDate = ZonedDateTime.parse(lastImageTime, RFC_1123_DATE_TIME);
             dockerfile = "Dockerfile-updatebuild";
             buildNum = env.BUILD_NUMBER.toInteger() - 1;
             prevImageTag = "3.1.0-russia-${pbfDate.format(BASIC_ISO_DATE)}-${buildNum}";
