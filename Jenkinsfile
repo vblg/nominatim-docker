@@ -25,37 +25,59 @@ String getLastPbfTimestamp(String url) {
     return connection.getHeaderField("Last-Modified");
 }
 
-
 node ('gce-standard-4-ssd') {
     cleanWs()
     checkout scm
+    def dockerfile = ""
+    def parameter = params.buildType
+    def fromImage = "ubuntu:xenial"
     stage ('Build image'){
-        try {
-            copyArtifacts filter: 'pbf-timestamp', fingerprintArtifacts: true, projectName: "${env.JOB_NAME}", selector: lastSuccessful()
-            lastImageTime = sh returnStdout: true, script: 'cat pbf-timestamp'
+        if (parameter == "UpdateBuild"){
+            try {
+                copyArtifacts filter: 'pbf-timestamp', fingerprintArtifacts: true, projectName: "${env.JOB_NAME}", selector: lastSuccessful()
+                lastImageTime = sh returnStdout: true, script: 'cat pbf-timestamp'
+            }
+            catch (e){
+                throw new Exception("This is first time build, select fullbuild parameter.");
+            }
+            ZonedDateTime pbfDate = ZonedDateTime.parse(lastImageTime, RFC_1123_DATE_TIME);
+            dockerfile = "Dockerfile-updatebuild";
+            buildNum = env.BUILD_NUMBER.toInteger() - 1;
+            prevImageTag = "3.1.0-russia-${pbfDate.format(BASIC_ISO_DATE)}-${buildNum}";
+            fromImage = "${imageRepo}/${appName}:${prevImageTag}";
         }
-        catch (e){
-            echo "Assuming that it's first time build"
-            lastImageTime = "Mon, 5 Jan 1970 00:00:00 GMT"
+        else if (parameter == "FullBuild"){
+            try {
+                copyArtifacts filter: 'pbf-timestamp', fingerprintArtifacts: true, projectName: "${env.JOB_NAME}", selector: lastSuccessful()
+                lastImageTime = sh returnStdout: true, script: 'cat pbf-timestamp'
+            }
+            catch (e){
+                echo "Assuming that it's first time build"
+                lastImageTime = "Mon, 5 Jan 1970 00:00:00 GMT"
+            }
+        
+            def lastModefied = getLastPbfTimestamp(pbfRepository);
+            echo "lastModefied: ${lastModefied}"
+            previousPbfDate = ZonedDateTime.parse(lastImageTime, RFC_1123_DATE_TIME);
+            echo "previousPbfDate: ${previousPbfDate.format(RFC_1123_DATE_TIME)}"
+            ZonedDateTime pbfDate = ZonedDateTime.parse(lastModefied, RFC_1123_DATE_TIME);
+        
+            if (!pbfDate.isAfter(previousPbfDate)) {
+                throw new Exception("no changes in geofabric repo. No build needed");
+            }
+            dockerfile = "Dockerfile-fullbuild";
+        }
+        else {
+            throw new Exception("No build parameter specified");
         }
         
-        def lastModefied = getLastPbfTimestamp(pbfRepository);
-        echo "lastModefied: ${lastModefied}"
-        previousPbfDate = ZonedDateTime.parse(lastImageTime, RFC_1123_DATE_TIME);
-        echo "previousPbfDate: ${previousPbfDate.format(RFC_1123_DATE_TIME)}"
-        ZonedDateTime pbfDate = ZonedDateTime.parse(lastModefied, RFC_1123_DATE_TIME);
-        
-        if (!pbfDate.isAfter(previousPbfDate)) {
-            throw new Exception("no changes in geofabric repo. No build needed");
-        }
-        
-        imageTag = "3.1.0-russia-${pbfDate.format(BASIC_ISO_DATE)}";
+        imageTag = "3.1.0-russia-${pbfDate.format(BASIC_ISO_DATE)}-${env.BUILD_NUMBER}";
         sh "echo -n \"${pbfDate.format(RFC_1123_DATE_TIME)}\"> pbf-timestamp"
         archiveArtifacts 'pbf-timestamp'
         withCredentials([file(credentialsId: 'google-docker-repo', variable: 'CREDENTIALS')]) {
             sh "mkdir -p ~/.docker && cat \"${CREDENTIALS}\" > ~/.docker/config.json"
         }           
-        sh "cd 3.0 && docker build -t ${imageRepo}/${appName}:${imageTag} --file Dockerfile-fullbuild . && docker push ${imageRepo}/${appName}:${imageTag}"
+        sh "cd 3.0 && docker build -t ${imageRepo}/${appName}:${imageTag} --build-args BUILD_IMAGE=${fromImage} --file ${dockerfile} . && docker push ${imageRepo}/${appName}:${imageTag}"
     }
 }
 node ('docker-server'){
@@ -64,7 +86,6 @@ node ('docker-server'){
     HelmRepository repo = new HelmRepository(steps,"helmrepo","https://nexus:8443/repository/helmrepo/")
     try {
         cleanWs()
-        appName = 'nominatim-docker'
         nominatimVer = '3.0'
         kubeProdContext = "google-system"
 
