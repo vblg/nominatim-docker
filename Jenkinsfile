@@ -12,6 +12,7 @@ def pbfRepository = "http://download.geofabrik.de/russia-latest.osm.pbf"
 def imageRepo = 'eu.gcr.io/indigo-terra-120510'
 def appName = 'nominatim-docker'
 def lastImageTime
+ZonedDateTime pbfDate
 
 @NonCPS
 String getLastPbfTimestamp(String url) {
@@ -58,9 +59,9 @@ node ('gce-standard-8-ssd') {
         
             def lastModefied = getLastPbfTimestamp(pbfRepository);
             echo "lastModefied: ${lastModefied}"
+            pbfDate = ZonedDateTime.parse(lastModefied, RFC_1123_DATE_TIME);
             previousPbfDate = ZonedDateTime.parse(lastImageTime, RFC_1123_DATE_TIME);
             echo "previousPbfDate: ${previousPbfDate.format(RFC_1123_DATE_TIME)}"
-            ZonedDateTime pbfDate = ZonedDateTime.parse(lastModefied, RFC_1123_DATE_TIME);
         
             if (!pbfDate.isAfter(previousPbfDate)) {
                 throw new Exception("no changes in geofabric repo. No build needed");
