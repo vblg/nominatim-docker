@@ -25,7 +25,7 @@ String getLastPbfTimestamp(String url) {
     return connection.getHeaderField("Last-Modified");
 }
 
-node ('gce-standard-4-ssd') {
+node ('gce-standard-8-ssd') {
     cleanWs()
     checkout scm
     def dockerfile = ""
