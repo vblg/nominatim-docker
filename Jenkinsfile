@@ -27,6 +27,7 @@ String getLastPbfTimestamp(String url) {
 }
 
 node ('gce-standard-8-ssd') {
+    def buildThreads = "16"
     cleanWs()
     checkout scm
     def dockerfile = ""
@@ -78,7 +79,7 @@ node ('gce-standard-8-ssd') {
         withCredentials([file(credentialsId: 'google-docker-repo', variable: 'CREDENTIALS')]) {
             sh "mkdir -p ~/.docker && cat \"${CREDENTIALS}\" > ~/.docker/config.json"
         }           
-        sh "cd 3.0 && docker build -t ${imageRepo}/${appName}:${imageTag} --build-arg BUILD_IMAGE=${fromImage} --file ${dockerfile} . && docker push ${imageRepo}/${appName}:${imageTag}"
+        sh "cd 3.0 && docker build -t ${imageRepo}/${appName}:${imageTag} --build-arg BUILD_IMAGE=${fromImage} --build-arg THREADS=${buildThreads} --file ${dockerfile} . && docker push ${imageRepo}/${appName}:${imageTag}"
     }
 }
 node ('docker-server'){
