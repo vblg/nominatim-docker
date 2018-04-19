@@ -116,7 +116,7 @@ node ('docker-server'){
                         "image.tag" : "${imageTag}"
                 ]
                 helm.upgrade( nominatimRelease )
-                helm.waitForDeploy(nominatimRelease, 400)
+                helm.waitForDeploy(nominatimRelease, 800)
             } catch (e) {
                 helm.rollback(nominatimRelease)
                 throw e
