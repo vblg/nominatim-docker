@@ -73,14 +73,6 @@ node ('gce-standard-8-ssd') {
             throw new Exception("No build parameter specified");
         }
         
-        try {
-            copyArtifacts filter: 'image-tag', fingerprintArtifacts: true, projectName: "${env.JOB_NAME}", resultVariableSuffix: 'NOMINATIM', selector: lastCompleted()
-            imageTag = sh returnStdout: true, script: 'cat image-tag'
-        }
-        catch(e) {
-            throw e
-        }
-        
         imageTag = "3.1.0-russia-${pbfDate.format(BASIC_ISO_DATE)}-${env.BUILD_NUMBER}";
         sh "echo -n \"${pbfDate.format(RFC_1123_DATE_TIME)}\"> pbf-timestamp"
         archiveArtifacts 'pbf-timestamp'
