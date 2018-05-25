@@ -73,12 +73,20 @@ node ('gce-standard-8-ssd') {
             throw new Exception("No build parameter specified");
         }
         
+        try {
+            copyArtifacts filter: 'image-tag', fingerprintArtifacts: true, projectName: "${env.JOB_NAME}", resultVariableSuffix: 'NOMINATIM', selector: lastCompleted()
+            imageTag = sh returnStdout: true, script: 'cat image-tag'
+        }
+        catch(e) {
+            throw e
+        }
+        
         imageTag = "3.1.0-russia-${pbfDate.format(BASIC_ISO_DATE)}-${env.BUILD_NUMBER}";
         sh "echo -n \"${pbfDate.format(RFC_1123_DATE_TIME)}\"> pbf-timestamp"
         archiveArtifacts 'pbf-timestamp'
         withCredentials([file(credentialsId: 'google-docker-repo', variable: 'CREDENTIALS')]) {
             sh "mkdir -p ~/.docker && cat \"${CREDENTIALS}\" > ~/.docker/config.json"
-        }           
+        }          
         sh "cd 3.0 && docker build -t ${imageRepo}/${appName}:${imageTag} --build-arg BUILD_IMAGE=${fromImage} --build-arg THREADS=${buildThreads} --file ${dockerfile} . && docker push ${imageRepo}/${appName}:${imageTag}"
     }
 }
@@ -117,7 +125,7 @@ node ('docker-server'){
                         "image.tag" : "${imageTag}"
                 ]
                 helm.upgrade( nominatimRelease )
-                helm.waitForDeploy(nominatimRelease, 800)
+                helm.waitForDeploy(nominatimRelease, 3600)
             } catch (e) {
                 helm.rollback(nominatimRelease)
                 throw e
